@@ -20,10 +20,10 @@ from datetime import datetime
 from typing import TypedDict
 import pytz
 from pydantic import BaseModel, Field
+import subprocess
+import re
 
 from mcp.server.fastmcp import FastMCP
-from mcp.server import stdio
-import sys
 
 # Create the MCP server
 mcp = FastMCP("System Info Server")
@@ -70,11 +70,23 @@ class SystemInfo(BaseModel):
     cpu_info: CPUInfo
     disk_info: DiskInfo
     platform_info: dict[str, str] = Field(description="Platform and OS information")
+    
+class NetstatPortInfo(BaseModel):
+    """Information extracted from netstat for a given port"""
+    port: int
+    pid: int | None
+    protocol: str | None
+    local_address: str | None
+    foreign_address: str | None
+    state: str | None
+    raw_line: str
 
 
 def bytes_to_gb(bytes_value: int) -> float:
     """Convert bytes to gigabytes with 2 decimal precision"""
     return round(bytes_value / (1024**3), 2)
+
+
 
 
 @mcp.tool()
@@ -181,6 +193,60 @@ def get_platform_info() -> str:
     return "\n".join(f"{key}: {value}" for key, value in info.items())
 
 
+
+
+
+
+@mcp.tool()
+def get_port_info_netstat(port: int) -> NetstatPortInfo:
+    """Use netstat -ano to find the process using a given port on Windows"""
+    try:
+        # Run netstat command
+        result = subprocess.run(["netstat", "-ano"], capture_output=True, text=True, shell=True)
+        output = result.stdout
+
+        # Match lines with the port
+        for line in output.splitlines():
+            if f":{port} " in line:  # Ensure space after port to avoid partial matches
+                parts = re.split(r"\s+", line.strip())
+                if len(parts) >= 5:
+                    proto = parts[0]
+                    local_address = parts[1]
+                    foreign_address = parts[2]
+                    state = parts[3] if proto.lower() == "tcp" else ""
+                    pid = int(parts[-1])
+                    return NetstatPortInfo(
+                        port=port,
+                        pid=pid,
+                        protocol=proto,
+                        local_address=local_address,
+                        foreign_address=foreign_address,
+                        state=state,
+                        raw_line=line.strip()
+                    )
+
+        return NetstatPortInfo(
+            port=port,
+            pid=None,
+            protocol=None,
+            local_address=None,
+            foreign_address=None,
+            state=None,
+            raw_line="Not found"
+        )
+
+    except Exception as e:
+        return NetstatPortInfo(
+            port=port,
+            pid=None,
+            protocol=None,
+            local_address=None,
+            foreign_address=None,
+            state=None,
+            raw_line=f"Error: {str(e)}"
+        )
+
+
 @mcp.resource("system://uptime")
 def get_system_uptime() -> str:
     """Get system uptime"""
@@ -198,6 +264,12 @@ def get_system_uptime() -> str:
 
 
 # Prompts for common queries
+@mcp.resource("greeting://{name}")
+def get_greeting(name: str) -> str:
+    """Get a personalized greeting"""
+    return f"Hello unga bunga, {name}!"
+
+
 @mcp.prompt()
 def system_status_prompt() -> str:
     """Generate a prompt for getting comprehensive system status"""
@@ -222,20 +294,8 @@ def performance_check_prompt() -> str:
 
 
 def main():
-    """Main entry point - run with stdio transport"""
-    try:
-        # Add error logging
-        print("Starting System Info Server...", file=sys.stderr)
-        
-        # Run the server using stdio transport
-        stdio_transport = stdio.StdioTransport()
-        
-        print("Server running with stdio transport", file=sys.stderr)
-        mcp.run_server(stdio_transport)
-        
-    except Exception as e:
-        print(f"Error starting server: {e}", file=sys.stderr)
-        sys.exit(1)
+    """Entry point for direct execution"""
+    mcp.run()
 
 
 if __name__ == "__main__":
