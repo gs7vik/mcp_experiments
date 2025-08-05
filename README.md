@@ -1,7 +1,7 @@
 Just a weekend exploration on MCP. 
 # System Information MCP Server
 
-This MCP (Management and Control Protocol) server provides a set of tools and resources for retrieving real-time system information, including time, memory, CPU, and disk usage.
+This MCP (Model Context Protocol) server provides a set of tools and resources for retrieving real-time system information, including time, memory, CPU, and disk usage.
 
 ## Features
 
