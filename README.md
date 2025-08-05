@@ -15,12 +15,11 @@ This MCP (Management and Control Protocol) server provides a set of tools and re
 
 ## Demo
 
-Watch a short video demonstrating how to set up and use the System Info MCP Server.
-
-[Working Demo](https://youtu.be/3i-mZcZJQHg)
 
 
-## Getting Started
+https://github.com/user-attachments/assets/3d793242-a09d-453b-aaa9-55f5cd83d656
+
+
 
 ### 1\. Prerequisites
 
